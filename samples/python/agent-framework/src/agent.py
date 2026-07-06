@@ -98,16 +98,20 @@ async def get_agent(context: TurnContext):
     """
     global _workiq_agent, _workiq_setup_done
 
+    # Already built the WorkIQ-enabled agent -> reuse it (built once, cached).
     if _workiq_agent is not None:
         return _workiq_agent
+    # Setup already attempted (and failed), or the package isn't installed -> weather-only.
     if _workiq_setup_done or TOOL_SERVICE is None:
         return WEATHER_AGENT
 
+    # Only try setup once; later messages take the branches above.
     _workiq_setup_done = True
 
     use_agentic_auth = environ.get("USE_AGENTIC_AUTH", "false").lower() == "true"
     bearer_token = environ.get("BEARER_TOKEN", "")
 
+    # No auth configured -> nothing to call WorkIQ with, stay weather-only.
     if not use_agentic_auth and not bearer_token and not WORKIQ_AUTH_HANDLER:
         logger.info(
             "WorkIQ not configured (no BEARER_TOKEN, USE_AGENTIC_AUTH, or "
@@ -140,6 +144,7 @@ async def get_agent(context: TurnContext):
         _workiq_agent = agent or WEATHER_AGENT
         logger.info("WorkIQ MCP tools attached to the agent.")
     except Exception as e:
+        # If setup fails, keep serving weather (default) instead of crashing.
         if environ.get("SKIP_TOOLING_ON_ERRORS", "true").lower() == "true":
             logger.error("WorkIQ MCP setup failed - running weather-only: %s", e)
             _workiq_agent = WEATHER_AGENT
@@ -149,9 +154,10 @@ async def get_agent(context: TurnContext):
     return _workiq_agent
 
 WELCOME_MESSAGE = (
-    "Hello! I'm your friendly weather cat assistant. 🐱 "
-    "I can help you find the current weather or a weather forecast for any city. "
-    "Just tell me the city name and, if you're in the US, the 2-letter state code. Meow!"
+    "Hello! I'm your friendly purr-ductivity cat assistant. 🐱 "
+    "I can fetch the current weather or forecast for any US city, "
+    "and I can help with your Microsoft 365 work too — like Teams chats, mail, and files. "
+    "Ask me a weather question (city + 2-letter state) or anything about your workday. Meow!"
 )
 
 
